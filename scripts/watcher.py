@@ -12,20 +12,25 @@ from tune_motors import error_dict, config_dict, decodeConfig, decodeError
 
 current_speed = 0
 selected_encoder = 0
+encoders = None
+
+def init():
+    global encoders
+    if encoders == None:
+        encoders = []
+        for rc in motor_addresses:
+            # controller, motor, name
+            encoders.append([rc, 0, motor_addresses[rc][0]])
+            encoders.append([rc, 1, motor_addresses[rc][1]])
 
 def get_selected_encoder():
-    encoders = []
-    for rc in corner_addresses:
-        # controller, motor, name
-        encoders.append([rc, 0, corner_addresses[rc][0]])
-        encoders.append([rc, 1, corner_addresses[rc][1]])
     return encoders[selected_encoder]
 
 def draw_corners(stdscr, offset_y, offset_x):
     encoders = []
-    for rc in corner_addresses:
-        encoders.append([corner_addresses[rc][0], roboclaw.ReadEncM1(rc)[1]])
-        encoders.append([corner_addresses[rc][1], roboclaw.ReadEncM2(rc)[1]])
+    for rc in motor_addresses:
+        encoders.append([motor_addresses[rc][0], roboclaw.ReadEncM1(rc)[1]])
+        encoders.append([motor_addresses[rc][1], roboclaw.ReadEncM2(rc)[1]])
 
     line = 0
     for encoder in encoders:
@@ -64,19 +69,19 @@ def draw_selected(stdscr, offset_y, offset_x):
         f_PositionPID = roboclaw.ReadM1PositionPID
         f_Enc = roboclaw.ReadEncM1
 
-    stdscr.addstr(line, offset_x, 'Encoder: {}'.format(f_Enc(encoder[0])))
+    stdscr.addstr(line, offset_x, 'Encoder: {:25s}'.format('{}'.format(f_Enc(encoder[0]))))
     line += 2
-    stdscr.addstr(line, offset_x, 'Speed: {}'.format(f_speed(encoder[0])))
+    stdscr.addstr(line, offset_x, 'Speed: {:25s}'.format('{}'.format(f_speed(encoder[0]))))
     line += 2
-    stdscr.addstr(line, offset_x, 'Velocity PID: {}'.format(f_VelocityPID(encoder[0])))
+    stdscr.addstr(line, offset_x, 'Velocity PID: {:90s}'.format('{}'.format(f_VelocityPID(encoder[0]))))
     line += 2
-    stdscr.addstr(line, offset_x, 'Position PID: {}'.format(f_PositionPID(encoder[0])))
+    stdscr.addstr(line, offset_x, 'Position PID: {:90s}'.format('{}'.format(f_PositionPID(encoder[0]))))
     line += 2
 
 def stop_all():
     global current_speed 
     current_speed = 0
-    for rc in corner_addresses:
+    for rc in motor_addresses:
         roboclaw.ForwardM1(rc,0)
         roboclaw.ForwardM2(rc,0)
 
@@ -118,10 +123,10 @@ def main(stdscr):
         if ch == ord('q'):
             break
         elif ch == curses.KEY_UP:
-            selected_encoder = (selected_encoder - 1) % 4
+            selected_encoder = (selected_encoder - 1) % len(encoders)
             stop_all()
         elif ch == curses.KEY_DOWN:
-            selected_encoder = (selected_encoder + 1) % 4
+            selected_encoder = (selected_encoder + 1) % len(encoders)
             stop_all()
         elif ch == ord(' '):
             stop_all()
@@ -135,11 +140,14 @@ def main(stdscr):
             if ch:
                 stdscr.addch(footer, curses.COLS-8, ch, curses.A_BOLD)
 
-wheel_addresses = [128, 129, 130]
-corner_addresses = {
-    131: {0: "Front Right", 1: "Back Right"},
-    132: {0: "Back Left", 1: "Front Left"}
+motor_addresses = {
+    128: {0: "Drive, FR", 1: "Drive, MR"},
+    129: {0: "Drive, RR", 1: "Drive, RL"},
+    130: {0: "Drive, ML", 1: "Drive, FL"},
+    131: {0: "Steer, FR", 1: "Steer, BR"},
+    132: {0: "Steer, BL", 1: "Steer, FL"}
 }
 roboclaw = Roboclaw("/dev/serial0", 115200)
 roboclaw.Open()
+init()
 wrapper(main)
